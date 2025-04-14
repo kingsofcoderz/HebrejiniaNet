@@ -1,60 +1,58 @@
-from flask import Flask, render_template, request, redirect, session, url_for
-from flask_socketio import SocketIO, send
-from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask import Flask, render_template, request, redirect, url_for
+import os
 
 app = Flask(__name__)
-app.secret_key = 'super-secret'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
-db = SQLAlchemy(app)
-socketio = SocketIO(app)
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(20), unique=True, nullable=False)
-    password = db.Column(db.String(100), nullable=False)
+# Make sure users.txt exists
+if not os.path.exists('users.txt'):
+    open('users.txt', 'w').close()
 
 @app.route('/')
 def home():
-    return '<h2>Welcome to Hebrejinia Chatroom!</h2><p><a href="/signup">Signup</a> | <a href="/login">Login</a></p>'
+    return 'Welcome to Hebrejinianet Chat!'
 
-# signup route
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         username = request.form['username']
-        password = generate_password_hash(request.form['password'])
-        user = User(username=username, password=password)
-        db.session.add(user)
-        db.session.commit()
-        return redirect('/login')
-    return render_template('signup.html')
+        password = request.form['password']
 
-# login route
+        with open('users.txt', 'a') as f:
+            f.write(f"{username}:{password}\n")
+
+        return 'Signup successful! Now you can login.'
+
+    return '''
+    <form method="post">
+      Username: <input type="text" name="username"><br>
+      Password: <input type="password" name="password"><br>
+      <input type="submit" value="Sign Up">
+    </form>
+    '''
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        user = User.query.filter_by(username=request.form['username']).first()
-        if user and check_password_hash(user.password, request.form['password']):
-            session['username'] = user.username
-            return redirect('/chat')
-        else:
-            return 'Invalid credentials'
-    return render_template('login.html')
+        username = request.form['username']
+        password = request.form['password']
 
-# chat route
-@app.route('/chat')
-def chat():
-    if 'username' in session:
-        return render_template('chat.html', username=session['username'])
-    return redirect('/login')
+        with open('users.txt', 'r') as f:
+            users = f.readlines()
 
-# socketio message event
-@socketio.on('message')
-def handle_message(msg):
-    print('Message: ' + msg)
-    send(msg, broadcast=True)
+        for user in users:
+            saved_username, saved_password = user.strip().split(':')
+            if username == saved_username and password == saved_password:
+                return f'Login successful! Welcome, {username}'
+
+        return 'Invalid username or password'
+
+    return '''
+    <form method="post">
+      Username: <input type="text" name="username"><br>
+      Password: <input type="password" name="password"><br>
+      <input type="submit" value="Login">
+    </form>
+    '''
 
 if __name__ == '__main__':
-    db.create_all()  # create db tables
-    socketio.run(app, debug=True)
+    app.run(debug=True)

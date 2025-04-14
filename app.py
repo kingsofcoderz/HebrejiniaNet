@@ -14,6 +14,10 @@ class User(db.Model):
     username = db.Column(db.String(20), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
 
+@app.route('/')
+def home():
+    return '<h2>Welcome to Hebrejinia Chatroom!</h2><p><a href="/signup">Signup</a> | <a href="/login">Login</a></p>'
+
 # signup route
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
